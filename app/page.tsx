@@ -22,39 +22,79 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const typeMessage = async (message: string) => {
-    setIsTyping(true);
-    const assistantMessage: Message = { role: 'assistant', content: '', isTyping: true };
-    setMessages(prev => [...prev, assistantMessage]);
-
-    for (let i = 0; i <= message.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = {
-          ...assistantMessage,
-          content: message.slice(0, i),
-        };
-        return newMessages;
-      });
-    }
-
-    setMessages(prev => {
-      const newMessages = [...prev];
-      newMessages[newMessages.length - 1].isTyping = false;
-      return newMessages;
-    });
-    setIsTyping(false);
-  };
-
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    setIsTyping(true);
 
-    await typeMessage('hello world');
+    // Add assistant message placeholder
+    const assistantMessage: Message = { role: 'assistant', content: '', isTyping: true };
+    setMessages(prev => [...prev, assistantMessage]);
+
+    try {
+      // Call the API route
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(msg => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              role: 'assistant',
+              content: newMessages[newMessages.length - 1].content + chunk,
+              isTyping: true,
+            };
+            return newMessages;
+          });
+        }
+      }
+
+      // Mark as done typing
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].isTyping = false;
+        return newMessages;
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          role: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.',
+          isTyping: false,
+        };
+        return newMessages;
+      });
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
