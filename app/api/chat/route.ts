@@ -17,11 +17,13 @@ For each user message:
 1. If the sentence contains errors, return a corrected version.
 2. If it is already correct, return it unchanged.
 3. Then provide a natural Spanish reply to continue the conversation.
+4. Provide an English translation of your Spanish reply.
 
 Return the result using this format exactly:
 
 Corrected: <corrected user sentence>
 Reply: <your Spanish response>
+Translation: <English translation of your reply>
 
 Do not add explanations.`
     };

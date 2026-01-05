@@ -7,6 +7,7 @@ interface Message {
   content: string;
   isTyping?: boolean;
   corrected?: string;
+  translation?: string;
 }
 
 interface Chat {
@@ -160,12 +161,14 @@ export default function Home() {
         }
       }
 
-      // Parse the response to extract corrected and reply
+      // Parse the response to extract corrected, reply, and translation
       const correctedMatch = fullResponse.match(/Corrected:\s*(.+?)(?=\nReply:|\n|$)/s);
-      const replyMatch = fullResponse.match(/Reply:\s*(.+)/s);
+      const replyMatch = fullResponse.match(/Reply:\s*(.+?)(?=\nTranslation:|\n|$)/s);
+      const translationMatch = fullResponse.match(/Translation:\s*(.+)/s);
 
       const correctedText = correctedMatch ? correctedMatch[1].trim() : '';
       const replyText = replyMatch ? replyMatch[1].trim() : fullResponse;
+      const translationText = translationMatch ? translationMatch[1].trim() : '';
 
       // Update user message with correction if it exists and is different
       if (correctedText && correctedText !== input) {
@@ -188,7 +191,7 @@ export default function Home() {
         );
       }
 
-      // Mark as done typing and set only the reply part
+      // Mark as done typing and set only the reply part with translation
       setChats(prev =>
         prev.map(chat => {
           if (chat.id === activeChatId) {
@@ -196,6 +199,7 @@ export default function Home() {
             newMessages[newMessages.length - 1] = {
               role: 'assistant',
               content: replyText,
+              translation: translationText,
               isTyping: false,
             };
             return { ...chat, messages: newMessages };
@@ -325,7 +329,7 @@ export default function Home() {
                     message.role === 'user'
                       ? 'bg-blue-500 text-white'
                       : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                  }`}
+                  } ${message.role === 'assistant' && message.translation ? 'group relative' : ''}`}
                 >
                   <div className="whitespace-pre-wrap break-words">
                     {message.content}
@@ -336,6 +340,12 @@ export default function Home() {
                   {message.role === 'user' && message.corrected && (
                     <div className="mt-2 pt-2 border-t border-blue-400 text-sm opacity-90">
                       ✓ {message.corrected}
+                    </div>
+                  )}
+                  {message.role === 'assistant' && message.translation && (
+                    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-max max-w-sm rounded-lg bg-zinc-800 px-3 py-2 text-sm text-white shadow-lg dark:bg-zinc-700">
+                      {message.translation}
+                      <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-zinc-800 dark:border-t-zinc-700"></div>
                     </div>
                   )}
                 </div>
