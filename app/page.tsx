@@ -135,6 +135,7 @@ export default function Home() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
+      let correctionShown = false;
 
       if (reader) {
         while (true) {
@@ -144,13 +145,45 @@ export default function Home() {
           const chunk = decoder.decode(value);
           fullResponse += chunk;
 
+          // Check if we have the corrected part and show it before the reply
+          const correctedMatch = fullResponse.match(/Corrected:\s*(.+?)(?=\s*\nReply:)/s);
+          if (correctedMatch && !correctionShown) {
+            const correctedText = correctedMatch[1].trim();
+            if (correctedText && correctedText !== input) {
+              setChats(prev =>
+                prev.map(chat => {
+                  if (chat.id === activeChatId) {
+                    const newMessages = [...chat.messages];
+                    // Find the user message (second to last)
+                    const userMessageIndex = newMessages.length - 2;
+                    if (userMessageIndex >= 0 && newMessages[userMessageIndex].role === 'user') {
+                      newMessages[userMessageIndex] = {
+                        ...newMessages[userMessageIndex],
+                        corrected: correctedText,
+                      };
+                    }
+                    return { ...chat, messages: newMessages };
+                  }
+                  return chat;
+                })
+              );
+              correctionShown = true;
+              // Small delay so user sees the correction before the reply starts
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+          }
+
+          // Parse in real-time to extract only the reply part
+          const replyMatch = fullResponse.match(/Reply:\s*(.+?)(?=\s*\nTranslation:|$)/s);
+          const displayText = replyMatch ? replyMatch[1].trim() : '';
+
           setChats(prev =>
             prev.map(chat => {
               if (chat.id === activeChatId) {
                 const newMessages = [...chat.messages];
                 newMessages[newMessages.length - 1] = {
                   role: 'assistant',
-                  content: fullResponse,
+                  content: displayText,
                   isTyping: true,
                 };
                 return { ...chat, messages: newMessages };
@@ -161,17 +194,17 @@ export default function Home() {
         }
       }
 
-      // Parse the response to extract corrected, reply, and translation
-      const correctedMatch = fullResponse.match(/Corrected:\s*(.+?)(?=\nReply:|\n|$)/s);
-      const replyMatch = fullResponse.match(/Reply:\s*(.+?)(?=\nTranslation:|\n|$)/s);
-      const translationMatch = fullResponse.match(/Translation:\s*(.+)/s);
+      // Parse the final response to extract all parts
+      const correctedMatch = fullResponse.match(/Corrected:\s*(.+?)(?=\s*\nReply:)/s);
+      const replyMatch = fullResponse.match(/Reply:\s*(.+?)(?=\s*\nTranslation:)/s);
+      const translationMatch = fullResponse.match(/Translation:\s*(.+?)$/s);
 
       const correctedText = correctedMatch ? correctedMatch[1].trim() : '';
       const replyText = replyMatch ? replyMatch[1].trim() : fullResponse;
       const translationText = translationMatch ? translationMatch[1].trim() : '';
 
-      // Update user message with correction if it exists and is different
-      if (correctedText && correctedText !== input) {
+      // Update user message with correction if not already shown
+      if (correctedText && correctedText !== input && !correctionShown) {
         setChats(prev =>
           prev.map(chat => {
             if (chat.id === activeChatId) {
