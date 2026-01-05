@@ -1,65 +1,124 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  isTyping?: boolean;
+}
 
 export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const typeMessage = async (message: string) => {
+    setIsTyping(true);
+    const assistantMessage: Message = { role: 'assistant', content: '', isTyping: true };
+    setMessages(prev => [...prev, assistantMessage]);
+
+    for (let i = 0; i <= message.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          ...assistantMessage,
+          content: message.slice(0, i),
+        };
+        return newMessages;
+      });
+    }
+
+    setMessages(prev => {
+      const newMessages = [...prev];
+      newMessages[newMessages.length - 1].isTyping = false;
+      return newMessages;
+    });
+    setIsTyping(false);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isTyping) return;
+
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+
+    await typeMessage('hello world');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="flex h-screen flex-col bg-white dark:bg-zinc-900">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-4 py-8">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`mb-4 flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <div
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  message.role === 'user'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+                }`}
+              >
+                <div className="whitespace-pre-wrap break-words">
+                  {message.content}
+                  {message.isTyping && (
+                    <span className="inline-block ml-1 w-1 h-4 bg-current animate-pulse" />
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      </div>
+
+      {/* Input area */}
+      <div className="border-t border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="mx-auto max-w-3xl px-4 py-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              disabled={isTyping}
+              className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isTyping}
+              className="rounded-lg bg-blue-500 px-6 py-2 font-medium text-white hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-blue-500"
+            >
+              Send
+            </button>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
