@@ -6,6 +6,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   isTyping?: boolean;
+  corrected?: string;
 }
 
 interface Chat {
@@ -132,6 +133,7 @@ export default function Home() {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
+      let fullResponse = '';
 
       if (reader) {
         while (true) {
@@ -139,13 +141,15 @@ export default function Home() {
           if (done) break;
 
           const chunk = decoder.decode(value);
+          fullResponse += chunk;
+
           setChats(prev =>
             prev.map(chat => {
               if (chat.id === activeChatId) {
                 const newMessages = [...chat.messages];
                 newMessages[newMessages.length - 1] = {
                   role: 'assistant',
-                  content: newMessages[newMessages.length - 1].content + chunk,
+                  content: fullResponse,
                   isTyping: true,
                 };
                 return { ...chat, messages: newMessages };
@@ -156,12 +160,44 @@ export default function Home() {
         }
       }
 
-      // Mark as done typing
+      // Parse the response to extract corrected and reply
+      const correctedMatch = fullResponse.match(/Corrected:\s*(.+?)(?=\nReply:|\n|$)/s);
+      const replyMatch = fullResponse.match(/Reply:\s*(.+)/s);
+
+      const correctedText = correctedMatch ? correctedMatch[1].trim() : '';
+      const replyText = replyMatch ? replyMatch[1].trim() : fullResponse;
+
+      // Update user message with correction if it exists and is different
+      if (correctedText && correctedText !== input) {
+        setChats(prev =>
+          prev.map(chat => {
+            if (chat.id === activeChatId) {
+              const newMessages = [...chat.messages];
+              // Find the user message (second to last)
+              const userMessageIndex = newMessages.length - 2;
+              if (userMessageIndex >= 0 && newMessages[userMessageIndex].role === 'user') {
+                newMessages[userMessageIndex] = {
+                  ...newMessages[userMessageIndex],
+                  corrected: correctedText,
+                };
+              }
+              return { ...chat, messages: newMessages };
+            }
+            return chat;
+          })
+        );
+      }
+
+      // Mark as done typing and set only the reply part
       setChats(prev =>
         prev.map(chat => {
           if (chat.id === activeChatId) {
             const newMessages = [...chat.messages];
-            newMessages[newMessages.length - 1].isTyping = false;
+            newMessages[newMessages.length - 1] = {
+              role: 'assistant',
+              content: replyText,
+              isTyping: false,
+            };
             return { ...chat, messages: newMessages };
           }
           return chat;
@@ -297,6 +333,11 @@ export default function Home() {
                       <span className="inline-block ml-1 w-1 h-4 bg-current animate-pulse" />
                     )}
                   </div>
+                  {message.role === 'user' && message.corrected && (
+                    <div className="mt-2 pt-2 border-t border-blue-400 text-sm opacity-90">
+                      ✓ {message.corrected}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

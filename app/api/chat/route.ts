@@ -9,9 +9,26 @@ export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
 
+    const systemPrompt = {
+      role: 'system',
+      content: `You are a Spanish conversation partner.
+
+For each user message:
+1. If the sentence contains errors, return a corrected version.
+2. If it is already correct, return it unchanged.
+3. Then provide a natural Spanish reply to continue the conversation.
+
+Return the result using this format exactly:
+
+Corrected: <corrected user sentence>
+Reply: <your Spanish response>
+
+Do not add explanations.`
+    };
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: messages,
+      messages: [systemPrompt, ...messages],
       stream: true,
     });
 
