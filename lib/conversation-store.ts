@@ -29,10 +29,7 @@ const listeners = new Set<() => void>();
 const SERVER_SNAPSHOT: Conversation[] = [];
 
 function current(): Conversation[] {
-  if (cache === null) {
-    const stored = read();
-    cache = stored.length > 0 ? stored : [createConversation()];
-  }
+  if (cache === null) cache = read();
   return cache;
 }
 

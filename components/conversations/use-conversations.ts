@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { conversationStore, createConversation } from "@/lib/conversation-store";
 import type { ChatMessage } from "@/lib/types";
 
@@ -22,6 +22,15 @@ export function useConversations() {
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Once mounted, ensure there's always at least one conversation to land in.
+  // conversationStore.set is a store mutation, not React state, so this is safe
+  // in an effect.
+  useEffect(() => {
+    if (conversations.length === 0) {
+      conversationStore.set(() => [createConversation()]);
+    }
+  }, [conversations.length]);
 
   // Selection is UI state; if nothing is selected yet, default to the first.
   const activeId = selectedId ?? conversations[0]?.id ?? null;
