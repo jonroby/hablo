@@ -1,12 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import {
-  createConversation,
-  loadConversations,
-  saveConversations,
-} from "@/lib/storage";
-import type { ChatMessage, Conversation } from "@/lib/types";
+import { useCallback, useState, useSyncExternalStore } from "react";
+import { conversationStore, createConversation } from "@/lib/conversation-store";
+import type { ChatMessage } from "@/lib/types";
 
 function deriveTitle(messages: ChatMessage[]): string {
   const firstUser = messages.find((m) => m.role === "user");
@@ -15,46 +11,37 @@ function deriveTitle(messages: ChatMessage[]): string {
 }
 
 export function useConversations() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  // Conversations are persisted in localStorage and exposed through an
+  // external store. useSyncExternalStore renders the empty server snapshot
+  // during SSR and the real client snapshot after — no hydration mismatch,
+  // no effects.
+  const conversations = useSyncExternalStore(
+    conversationStore.subscribe,
+    conversationStore.getSnapshot,
+    conversationStore.getServerSnapshot,
+  );
 
-  // Hydrate from localStorage after mount, then keep it in sync. localStorage
-  // is client-only, so this can't happen during render. The first run loads
-  // stored conversations (or seeds one); later runs persist changes.
-  useEffect(() => {
-    if (!hydrated) {
-      const stored = loadConversations();
-      const initial = stored.length > 0 ? stored : [createConversation()];
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; one-time hydration must run post-mount
-      setConversations(initial);
-      setActiveId(initial[0].id);
-      setHydrated(true);
-      return;
-    }
-    saveConversations(conversations);
-  }, [conversations, hydrated]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Selection is UI state; if nothing is selected yet, default to the first.
+  const activeId = selectedId ?? conversations[0]?.id ?? null;
 
   const newConversation = useCallback(() => {
     const conversation = createConversation();
-    setConversations((prev) => [conversation, ...prev]);
-    setActiveId(conversation.id);
+    conversationStore.set((prev) => [conversation, ...prev]);
+    setSelectedId(conversation.id);
   }, []);
 
-  const deleteConversation = useCallback(
-    (id: string) => {
-      setConversations((prev) => {
-        const next = prev.filter((c) => c.id !== id);
-        if (id === activeId) setActiveId(next[0]?.id ?? null);
-        return next;
-      });
-    },
-    [activeId],
-  );
+  const deleteConversation = useCallback((id: string) => {
+    conversationStore.set((prev) => prev.filter((c) => c.id !== id));
+    setSelectedId((current) =>
+      current === id ? (conversationStore.getSnapshot()[0]?.id ?? null) : current,
+    );
+  }, []);
 
   const updateActiveMessages = useCallback(
     (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
-      setConversations((prev) =>
+      conversationStore.set((prev) =>
         prev.map((c) => {
           if (c.id !== activeId) return c;
           const messages = updater(c.messages);
@@ -71,7 +58,7 @@ export function useConversations() {
     conversations,
     activeId,
     active,
-    selectConversation: setActiveId,
+    selectConversation: setSelectedId,
     newConversation,
     deleteConversation,
     updateActiveMessages,
