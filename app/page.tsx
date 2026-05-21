@@ -1,117 +1,110 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MessageBubble } from "@/components/message-bubble";
-import type { ChatMessage } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen } from "lucide-react";
+import { Sidebar } from "@/components/sidebar";
+import { ChatPanel } from "@/components/chat-panel";
+import {
+  createConversation,
+  loadConversations,
+  saveConversations,
+} from "@/lib/storage";
+import type { ChatMessage, Conversation } from "@/lib/types";
+
+function deriveTitle(messages: ChatMessage[]): string {
+  const firstUser = messages.find((m) => m.role === "user");
+  if (!firstUser) return "Nueva conversación";
+  return firstUser.content.slice(0, 40);
+}
 
 export default function Home() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Hydrate from localStorage after mount, then keep it in sync. localStorage
+  // is client-only, so this can't happen during render. The first run loads
+  // stored conversations (or seeds one); later runs persist changes.
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isLoading) return;
-
-    const userId = crypto.randomUUID();
-    // Show the original text immediately; it gets replaced by the Spanish
-    // translation once the API responds.
-    setMessages((prev) => [
-      ...prev,
-      { id: userId, role: "user", content: text },
-    ]);
-    setInput("");
-    setIsLoading(true);
-
-    // History sent to the API: prior turns are already in Spanish, plus the
-    // new raw user text for this turn.
-    const history = messages.map(({ role, content }) => ({
-      id: crypto.randomUUID(),
-      role,
-      content,
-    }));
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...history, { id: userId, role: "user", content: text }],
-        }),
-      });
-
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-
-      const { translation, reply } = (await res.json()) as {
-        translation: string;
-        reply: string;
-      };
-
-      setMessages((prev) => [
-        ...prev.map((m) =>
-          m.id === userId ? { ...m, content: translation } : m,
-        ),
-        { id: crypto.randomUUID(), role: "assistant", content: reply },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Lo siento, algo salió mal. Inténtalo de nuevo.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+    if (!hydrated) {
+      const stored = loadConversations();
+      const initial = stored.length > 0 ? stored : [createConversation()];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; one-time hydration must run post-mount
+      setConversations(initial);
+      setActiveId(initial[0].id);
+      setHydrated(true);
+      return;
     }
+    saveConversations(conversations);
+  }, [conversations, hydrated]);
+
+  function handleNew() {
+    const conversation = createConversation();
+    setConversations((prev) => [conversation, ...prev]);
+    setActiveId(conversation.id);
   }
 
+  function handleDelete(id: string) {
+    setConversations((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      if (id === activeId) {
+        setActiveId(next[0]?.id ?? null);
+      }
+      return next;
+    });
+  }
+
+  function handleMessagesChange(
+    updater: (prev: ChatMessage[]) => ChatMessage[],
+  ) {
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== activeId) return c;
+        const messages = updater(c.messages);
+        return { ...c, messages, title: deriveTitle(messages) };
+      }),
+    );
+  }
+
+  const active = conversations.find((c) => c.id === activeId) ?? null;
+
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
-      <header className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold tracking-tight">Hablo</h1>
-        <p className="text-sm text-muted-foreground">
-          Escribe en cualquier idioma — lo traducimos al español
-        </p>
-      </header>
-
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
-        {messages.length === 0 ? (
-          <p className="pt-12 text-center text-sm text-muted-foreground">
-            Escribe un mensaje para empezar.
-          </p>
-        ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))
-        )}
-        <div ref={scrollRef} />
-      </div>
-
-      <form onSubmit={handleSend} className="flex gap-2 border-t px-6 py-4">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe en inglés o español…"
-          className="flex-1"
-          autoFocus
-          disabled={isLoading}
+    <div className="flex flex-1 overflow-hidden">
+      {sidebarOpen && (
+        <Sidebar
+          conversations={conversations}
+          activeId={activeId}
+          onSelect={setActiveId}
+          onNew={handleNew}
+          onDelete={handleDelete}
+          onClose={() => setSidebarOpen(false)}
         />
-        <Button type="submit" size="icon" disabled={!input.trim() || isLoading}>
-          <Send className="size-4" />
-          <span className="sr-only">Enviar</span>
-        </Button>
-      </form>
-    </main>
+      )}
+
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute left-3 top-3 z-10 text-muted-foreground hover:text-foreground"
+            aria-label="Abrir barra lateral"
+          >
+            <PanelLeftOpen className="size-5" />
+          </button>
+        )}
+
+        {active ? (
+          <ChatPanel
+            key={active.id}
+            messages={active.messages}
+            onMessagesChange={handleMessagesChange}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            Crea una conversación para empezar.
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
