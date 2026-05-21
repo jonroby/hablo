@@ -7,36 +7,71 @@ import { Input } from "@/components/ui/input";
 import { MessageBubble } from "@/components/message-bubble";
 import type { ChatMessage } from "@/lib/types";
 
-// Placeholder reply until the Claude API is wired up in Commit 3.
-const FAKE_REPLY = "Hola, ¿cómo estás?";
-
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function handleSend(e: React.FormEvent) {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text || isStreaming) return;
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: text,
     };
-    const assistantMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: FAKE_REPLY,
-    };
+    const assistantId = crypto.randomUUID();
+    const history = [...messages, userMessage];
 
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    setMessages([
+      ...history,
+      { id: assistantId, role: "assistant", content: "" },
+    ]);
     setInput("");
+    setIsStreaming(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Request failed: ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + chunk } : m,
+          ),
+        );
+      }
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: "Lo siento, algo salió mal. Inténtalo de nuevo." }
+            : m,
+        ),
+      );
+    } finally {
+      setIsStreaming(false);
+    }
   }
 
   return (
@@ -68,8 +103,9 @@ export default function Home() {
           placeholder="Escribe en español…"
           className="flex-1"
           autoFocus
+          disabled={isStreaming}
         />
-        <Button type="submit" size="icon" disabled={!input.trim()}>
+        <Button type="submit" size="icon" disabled={!input.trim() || isStreaming}>
           <Send className="size-4" />
           <span className="sr-only">Enviar</span>
         </Button>
