@@ -4,6 +4,12 @@ export interface ChatMessage {
   id: string;
   role: Role;
   content: string;
+  /**
+   * The alternate-language version revealed by the translation toggle:
+   * the user's original English/input for user messages, the English
+   * translation of the Spanish reply for assistant messages.
+   */
+  translation?: string;
 }
 
 export interface Conversation {
@@ -28,4 +34,6 @@ export interface ChatResponse {
   translation: string;
   /** A conversational reply to the user, in Spanish. */
   reply: string;
+  /** The English translation of `reply`. */
+  replyTranslation: string;
 }

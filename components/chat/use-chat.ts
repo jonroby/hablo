@@ -27,15 +27,24 @@ export function useChat({ messages, onMessagesChange }: UseChatArgs) {
       setIsLoading(true);
 
       try {
-        const { translation, reply } = await sendChat({
+        const { translation, reply, replyTranslation } = await sendChat({
           messages: [...history, { role: "user", content: trimmed }],
         });
 
         onMessagesChange((prev) => [
+          // Show the corrected Spanish, but keep the original input so the
+          // translation toggle can reveal what the user actually typed.
           ...prev.map((m) =>
-            m.id === userId ? { ...m, content: translation } : m,
+            m.id === userId
+              ? { ...m, content: translation, translation: trimmed }
+              : m,
           ),
-          { id: crypto.randomUUID(), role: "assistant", content: reply },
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: reply,
+            translation: replyTranslation,
+          },
         ]);
       } catch {
         onMessagesChange((prev) => [

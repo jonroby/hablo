@@ -27,10 +27,10 @@ export function useConversations() {
   // conversationStore.set is a store mutation, not React state, so this is safe
   // in an effect.
   useEffect(() => {
-    if (conversations.length === 0) {
-      conversationStore.set(() => [createConversation()]);
-    }
-  }, [conversations.length]);
+    conversationStore.set((prev) =>
+      prev.length === 0 ? [createConversation()] : prev,
+    );
+  }, []);
 
   // Selection is UI state; if nothing is selected yet, default to the first.
   const activeId = selectedId ?? conversations[0]?.id ?? null;
