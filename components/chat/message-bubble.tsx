@@ -4,17 +4,15 @@ import { useState } from "react";
 import { HighlightedText } from "@/components/chat/highlighted-text";
 import { MessageControls } from "@/components/chat/message-controls";
 import { TenseInfoSheet } from "@/components/chat/tense-info-sheet";
-import { useVerbHighlight } from "@/components/chat/use-verb-highlight";
+import { useHighlight } from "@/components/chat/use-highlight";
+import type { InfoRequest } from "@/components/chat/rules";
 import { cn } from "@/lib/utils";
-import type { TenseName } from "@/lib/prompts";
 import type { ChatMessage } from "@/lib/types";
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
-  const { verbs, isLoading, active, toggle } = useVerbHighlight(
-    message.content,
-  );
-  const [openTense, setOpenTense] = useState<TenseName | null>(null);
+  const { spans, isLoading, active, toggle } = useHighlight(message.content);
+  const [info, setInfo] = useState<InfoRequest | null>(null);
 
   return (
     <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
@@ -23,9 +21,9 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           <MessageControls
             text={message.content}
             translation={message.translation}
-            verbsActive={active}
-            verbsLoading={isLoading}
-            onToggleVerbs={toggle}
+            highlightActive={active}
+            highlightLoading={isLoading}
+            onToggleHighlight={toggle}
           />
         </div>
         <div
@@ -36,11 +34,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               : "rounded-bl-md bg-muted text-foreground",
           )}
         >
-          {verbs ? (
+          {spans ? (
             <HighlightedText
               text={message.content}
-              verbs={verbs}
-              onTenseClick={setOpenTense}
+              spans={spans}
+              onShowInfo={setInfo}
             />
           ) : (
             message.content
@@ -48,9 +46,9 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
       </div>
       <TenseInfoSheet
-        tense={openTense}
+        tense={info?.kind === "tense" ? info.tense : null}
         onOpenChange={(open) => {
-          if (!open) setOpenTense(null);
+          if (!open) setInfo(null);
         }}
       />
     </div>

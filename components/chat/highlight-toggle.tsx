@@ -1,10 +1,10 @@
 "use client";
 
-import { Loader2, SpellCheck2 } from "lucide-react";
+import { Loader2, Highlighter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/** An icon button that toggles verb highlighting for a message. */
-export function VerbToggle({
+/** An icon button that toggles all highlight rules for a message. */
+export function HighlightToggle({
   active,
   isLoading,
   onToggle,
@@ -13,7 +13,7 @@ export function VerbToggle({
   isLoading: boolean;
   onToggle: () => void;
 }) {
-  const label = active ? "Ocultar verbos" : "Resaltar verbos";
+  const label = active ? "Ocultar resaltado" : "Resaltar";
 
   return (
     <Button
@@ -26,7 +26,7 @@ export function VerbToggle({
       onClick={onToggle}
       className="text-muted-foreground opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100 aria-pressed:opacity-100"
     >
-      {isLoading ? <Loader2 className="animate-spin" /> : <SpellCheck2 />}
+      {isLoading ? <Loader2 className="animate-spin" /> : <Highlighter />}
     </Button>
   );
 }
