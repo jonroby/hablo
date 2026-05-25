@@ -8,15 +8,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface TranslationToggleProps {
-  /** The translated text to reveal. */
-  text: string;
-  /** Which side of the trigger the popover aligns to. */
-  align?: "start" | "end";
-}
-
 /** An icon button that reveals a translation in a popover above it. */
-export function TranslationToggle({ text, align = "start" }: TranslationToggleProps) {
+export function TranslationToggle({ text }: { text: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -32,7 +25,7 @@ export function TranslationToggle({ text, align = "start" }: TranslationTogglePr
       </PopoverTrigger>
       <PopoverContent
         side="top"
-        align={align}
+        align="end"
         className="leading-relaxed whitespace-pre-wrap"
       >
         {text}
