@@ -1,3 +1,5 @@
+import type { TenseName } from "@/lib/prompts";
+
 export type Role = "user" | "assistant";
 
 export interface ChatMessage {
@@ -36,4 +38,27 @@ export interface ChatResponse {
   reply: string;
   /** The English translation of `reply`. */
   replyTranslation: string;
+}
+
+/** A single conjugated verb located within a message, with its tense. */
+export interface VerbSpan {
+  /** The verb phrase exactly as it appears in the text, e.g. "he visto". */
+  text: string;
+  /** Character offset of the verb within the message content (inclusive). */
+  start: number;
+  /** Character offset just past the verb within the message content. */
+  end: number;
+  /** The Barron's tense name, in Spanish (see VERB_TENSES). */
+  tense: TenseName;
+  /** The verb's infinitive, e.g. "ver". */
+  infinitive: string;
+}
+
+export interface VerbsRequest {
+  /** The Spanish text to analyze for conjugated verbs. */
+  text: string;
+}
+
+export interface VerbsResponse {
+  verbs: VerbSpan[];
 }
