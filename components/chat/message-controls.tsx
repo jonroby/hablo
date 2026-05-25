@@ -1,35 +1,35 @@
+import { HighlightToggle } from "@/components/chat/highlight-toggle";
 import { SpeakerButton } from "@/components/chat/speaker-button";
 import { TranslationToggle } from "@/components/chat/translation-toggle";
-import { VerbToggle } from "@/components/chat/verb-toggle";
 
 interface MessageControlsProps {
   /** The Spanish text the speaker reads aloud. */
   text: string;
   /** Alternate-language text revealed by the translation toggle, if any. */
   translation?: string;
-  /** Whether verb highlighting is currently active for this message. */
-  verbsActive: boolean;
-  /** Whether the verbs request is in flight. */
-  verbsLoading: boolean;
-  /** Toggles verb highlighting on or off. */
-  onToggleVerbs: () => void;
+  /** Whether highlighting is currently active for this message. */
+  highlightActive: boolean;
+  /** Whether the highlight rules are still running. */
+  highlightLoading: boolean;
+  /** Toggles highlighting on or off. */
+  onToggleHighlight: () => void;
 }
 
-/** The row of per-message actions (listen, highlight verbs, translate). */
+/** The row of per-message actions (listen, highlight, translate). */
 export function MessageControls({
   text,
   translation,
-  verbsActive,
-  verbsLoading,
-  onToggleVerbs,
+  highlightActive,
+  highlightLoading,
+  onToggleHighlight,
 }: MessageControlsProps) {
   return (
     <div className="flex items-center gap-1.5">
       <SpeakerButton text={text} />
-      <VerbToggle
-        active={verbsActive}
-        isLoading={verbsLoading}
-        onToggle={onToggleVerbs}
+      <HighlightToggle
+        active={highlightActive}
+        isLoading={highlightLoading}
+        onToggle={onToggleHighlight}
       />
       {translation ? <TranslationToggle text={translation} /> : null}
     </div>
