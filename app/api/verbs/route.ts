@@ -1,14 +1,21 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { VERBS_SYSTEM_PROMPT, VERBS_RESPONSE_SCHEMA } from "@/lib/prompts";
+import {
+  VERBS_SYSTEM_PROMPT,
+  VERBS_RESPONSE_SCHEMA,
+  type TenseName,
+} from "@/lib/prompts";
 import type { VerbsRequest, VerbSpan } from "@/lib/types";
 
 const client = new Anthropic();
 
-/** What the model returns per verb — offsets are resolved server-side. */
+/**
+ * What the model returns per verb — offsets are resolved server-side. The
+ * JSON schema constrains `tense` to the VERB_TENSES enum, so it is a TenseName.
+ */
 interface RawVerb {
   text: string;
   infinitive: string;
-  tense: string;
+  tense: TenseName;
 }
 
 /**

@@ -53,6 +53,9 @@ export const VERB_TENSES = [
   "Imperativo",
 ] as const;
 
+/** One of the Barron's tense/mood names the verbs API returns. */
+export type TenseName = (typeof VERB_TENSES)[number];
+
 export const VERBS_SYSTEM_PROMPT = `You analyze Spanish text and identify every conjugated verb.
 
 For each conjugated verb in the text, return:

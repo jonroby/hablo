@@ -1,3 +1,5 @@
+import type { TenseName } from "@/lib/prompts";
+
 export type Role = "user" | "assistant";
 
 export interface ChatMessage {
@@ -47,7 +49,7 @@ export interface VerbSpan {
   /** Character offset just past the verb within the message content. */
   end: number;
   /** The Barron's tense name, in Spanish (see VERB_TENSES). */
-  tense: string;
+  tense: TenseName;
   /** The verb's infinitive, e.g. "ver". */
   infinitive: string;
 }
