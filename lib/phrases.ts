@@ -179,6 +179,7 @@ export const PHRASES: Phrase[] = [
   { phrase: "sino que", meaning: "but rather" },
   // --- Idioms / fixed expressions ---
   { phrase: "darse cuenta de", meaning: "to realize" },
+  { phrase: "darse cuenta", meaning: "to realize" },
   { phrase: "tener ganas de", meaning: "to feel like, to want to" },
   { phrase: "echar de menos", meaning: "to miss (someone/something)" },
   { phrase: "valer la pena", meaning: "to be worth it" },
@@ -375,6 +376,7 @@ export const PHRASES: Phrase[] = [
   { phrase: "qué le vamos a hacer", meaning: "what can you do" },
   { phrase: "ya veremos", meaning: "we'll see" },
   { phrase: "qué sé yo", meaning: "what do I know, who knows" },
+  { phrase: "ni idea", meaning: "no idea" },
   { phrase: "vete a saber", meaning: "who knows" },
   { phrase: "ya te digo", meaning: "tell me about it, for sure" },
   { phrase: "y que lo digas", meaning: "you can say that again" },
@@ -577,11 +579,19 @@ function normalize(value: string): string {
     .replace(/\p{Diacritic}/gu, "");
 }
 
+/** A match is only valid if it isn't glued to a letter/digit on either side. */
+function isWordBoundary(haystack: string, at: number): boolean {
+  const char = haystack[at];
+  return char === undefined || !/[\p{L}\p{N}]/u.test(char);
+}
+
 /**
- * Find every stock phrase in `text`, case- and accent-insensitively. May return
- * overlapping matches in arbitrary order — the caller resolves overlaps (see
- * dropOverlaps in runRules). NFD normalization preserves 1:1 character offsets
- * for Spanish text, so offsets map back onto the original string.
+ * Find every stock phrase in `text`, case- and accent-insensitively. Matches
+ * must fall on word boundaries, so a short phrase like "a ver" does not match
+ * inside "la verdad". May return overlapping matches in arbitrary order — the
+ * caller resolves overlaps (see dropOverlaps in runRules). NFD normalization
+ * preserves 1:1 character offsets for Spanish text, so offsets map back onto
+ * the original string.
  */
 export function findPhrases(text: string): PhraseSpan[] {
   const haystack = normalize(text);
@@ -592,13 +602,11 @@ export function findPhrases(text: string): PhraseSpan[] {
     let at = haystack.indexOf(needle);
 
     while (at !== -1) {
-      found.push({
-        ...entry,
-        start: at,
-        end: at + needle.length,
-        text: text.slice(at, at + needle.length),
-      });
-      at = haystack.indexOf(needle, at + needle.length);
+      const end = at + needle.length;
+      if (isWordBoundary(haystack, at - 1) && isWordBoundary(haystack, end)) {
+        found.push({ ...entry, start: at, end, text: text.slice(at, end) });
+      }
+      at = haystack.indexOf(needle, at + 1);
     }
   }
 
